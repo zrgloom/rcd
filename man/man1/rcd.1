@@ -1,0 +1,179 @@
+.TH rcd 1 "Jully 2026" Date "Remote command distribution"
+.SH NAME
+rcd - Remote command distribution
+.SH SYNTAX
+rcd.exp -h path_to_host_file | -h path_to_host_file [-ip ip_address] [-login login_name]
+[-pass password] [-proto [ssh|telnet]] [-cfile path_to_command_file] [-t timeout_in_sec]
+.I [-others]
+.SH DESCRIPTION
+Can distribute IOS commands on multiple Cisco devices, upload/download a startup/running
+configuration to/from Cisco devices or for performing device upgrade. These tasks can be
+performed by SSH or Telnet protocols. Even thought this script was primarily created for
+Cisco devices it can also be used for non Cisco devices (but I did not test it).
+.SH OPTIONS
+.IP -h
+Define the name of a hostfile that contains hosts specific parameters such as device
+IP address, transport protocol (ssh or telnet), login name or password. This information 
+will be used for connecting to a device. See the HOST FILE section.
+.IP -ip
+An IP address of a device. For the ip address syntax see the HOST FILE section.
+.IP -login
+A user login name. Used during SSH/Telnet authentication process.
+.IP -pass
+A user password. Used during SSH/Telnet authentication process.
+.IP -proto
+Define which protocol will be used for communication with device. You can choose either ssh or telnet.
+.IP -cfile
+Define the command file containing a list of commands to be distributed.
+.IP -t
+How long (in seconds) rcd.exp will wait for connection establishment, or receiving expected
+string from device. Default value is 30s. Large value could result in slow performance espcially
+in case when some hosts are not accessible or wrong cfile definition. On the other hand very short
+value could result in assumption that some operation did not finished correctly (for example ssh
+key generation).
+.IP -others
+You can define (in a host file) as many parameters as necessary (in the first non '#' line - see HOST FILE
+section for more information) and then used them as a command line parameters with '-' preffix.
+.SH COMMAND DISTRIBUTION
+Before any distribution process can be started, you have to create two files. The first file (a host file)
+is a list of IP addresses where you intend to distribute configuration commands together with other
+configuration parameters. The second file (a command file) is a list of commands you want to distribute.
+Lines beginning with '#' characters are considered as remark.
+.SS HOST FILE
+.P
+The first line of the host file which does not begin with '#' is called a parameter line. 
+The parametr line represents names of parameters that are needed to successfully distribute
+configuration commands to their destinations. The second and following lines represent values of the
+parameters specified in the parameter line. Some parameter names are mandatory and their names must not be
+changed. Others are user defined. Order of parameter names does not matter. Parametr names and their values
+are comma separated list. Parameters which are defined within the parametr line can be also used as a command
+line arguments with '-' prefix. Defined values in host file have precidence over command line values. If you
+omit a value for specific parametr name (because it is same for all lines in the host file) you can use
+command line option to provide the value.
+.SS HOST FILE - MANDATORY PARAMETERS
+.IP ip
+ip address of remote device to which we want to distribute commands. It is possible to use range in any of the
+ip address octets. For example 192.168.20-30.1-255. Fourth octect's range is changing faster than thirth, third is
+changing faster that second and second octet's range is changing faster than the first. For our example you will get
+following ip addresses:
+.P
+.nf
+.B \t\t192.168.20.1, 192.168.20.2, 192.168.20.3, 192.168.20.4 ..... 192.168.20.255
+.B \t\t192.168.21.1, 192.168.21.2, 192.168.21.3, 192.168.21.4 ..... 192.168.21.255
+.B \t\t192.168.22.1, 192.168.22.2, 192.168.22.3, 192.168.22.4 ..... 192.168.22.255
+.B \t\t.
+.B \t\t.
+.B \t\t192.168.30.1, 1921.68.30.2, 192.168.30.3, 192.168.30.4 ..... 192.168.30.255
+.fi
+.IP login 
+A user login name. Used during SSH/Telnet authentication process.
+.IP pass
+A user password. Used during SSH/Telnet authentication process.
+.IP proto
+Define which protocol will be used for communication with device. You can choose either ssh or telnet.
+.IP cfile
+Define the command file containing a list of commands to be distributed.
+.SS HOST FILE - USER DEFINED PARAMETERS
+You can define as many parameters as you want. This parametrs can be then used as a variable in command file.
+For example 'tftp' parametr name can define ip address of TFTP server to which you want to backup configuration
+files.
+.SS HOST FILE - EXAMPLE
+\t
+.P
+.nf
+------------------------ file name: hosts ---------------------------
+.B #define list of switches to backup
+.B ip,login,pass,enabpass,proto,tftp,cfile
+.B 192.168.20.10,root,topsecret,topsecret,ssh,,./cisco.generic.backup
+.B 192.168.10.55,root,topsecret,topsecret,ssh,,./cisco.generic.backup
+------------------------- end of file -------------------------------
+.fi
+
+In the above example you can see that in the file 'hosts' threre are seven parameter names from which five are mandatory
+and the rest is users defined (see COMMAND FILE section for how to use parameters in the command file). Line 1 is a remark
+describing the purpose of the file. Line 2 define parameter line. Line 3 and 4 are values for line 2 parameters. Value for
+the 'tftp' parameter is omitted and you must supply the value by means of command line parameter as shown in the following
+example.
+\t
+.P
+.B ./rcd.exp -h hosts -tftp 192.168.254.100
+
+.SS HOST FILE - password management
+There are several ways to provide passwords for the rcd script. The simplest method is to use the -pass argument and leave the password field empty in the host file. Note that a password specified in the host file takes priority over one provided via the -pass argument.
+You can also place a clear-text password directly in the host file’s pass field, though this is less secure. Alternatively, you can put a filename in the pass field, and the script will read the password from that file.
+For a more secure approach, you can use the Python keyring module to manage passwords. In this case, enter keyring:service in the pass field, where keyring is a keyword and service is the service name used by your password backend. To use this feature, install the keyring module with 'sudo pip install keyring' command.
+You may also need to update the keyring_backend variable at the beginning of the script, unless you choose to rely on the default backend, keyring.backends.libsecret.Keyring, which stores all passwords encrypted in a local file (~/.local/share/keyrings/).
+Unfortunately, if you need to provide an enable password, it must be stored as clear text in the host file. To avoid this, you can use AAA authorization, which automatically places you in privileged mode.
+
+.SS COMMAND FILE
+The command file consists of two types of lines - 'what you expect' and 'send' lines. 
+The first line is the what you expect line, which is string received from the device. The second line
+is what you send to the device (send line). In the following example (see the first two lines),
+the first line is the '.*>' which define what you expect to receive as
+a response string when you log in to a pix device. You can use regular
+expressions. '.*>' means that you expect anything following by '>' character. 
+The second line define command that you want to send to an device. In our example
+it is 'enable' command. Third and the following lines are yust what you saw in the
+first two lines - what you expect/what you send - and so on. Strings beginning with '$' character
+define variable. You can use host file parameters as a variable (for example: $tftp). If you use
+regular expressions in command file you can also use parenthesses to define $1, $2-$n variable.
+In the example bellow you can see that (\\w+) regular expression store pix hostname into $1 variable,
+which in turn is used in 'write net $tftp:$1' command.
+.SS COMMAND FILE - EXAMPLE
+\t
+.P
+.nf
+----------------------- file name: cisco.pix-------------------------
+.B .*>
+.B enable
+.B Password:
+.B $enabpass
+.B (w+)#
+.B write net $tftp:$1
+.B .*#
+.B logout
+------------------------- end of file -------------------------------
+.fi
+.SS COMMAND FILE - REGULAR EXPRESSIONS
+.IP .
+Matches any character.
+.IP *
+Matches zero or more instances of the previous pattern item.
+.IP +
+Matches one or more instances of the previous pattern item.
+.IP ?
+Matches zero or one instances of the previous pattern item.
+.IP ()
+Groups a subpattern.
+.IP |
+Alternation.
+.IP ^
+Anchor the pattern to the beginning of the string. Only when first.
+.IP $
+Anchor the pattern to the end of the string. Only when last.
+.IP \\\d
+Digits.
+.IP \\\w
+Letters, digit, and underscore.
+.IP \\\s
+Space.
+.P
+The above list of regular expressions is only shortened list. You should consult other books for complete
+list and explanation.
+.SH USAGE NOTICE
+You had better try your command file on a test device before you will apply it on
+real devices. If you do not, you can finished with unreachable devices !!!
+.SH BUGS AND SUGGESTIONS
+I would appreciate if you could send me any bug report or suggestion
+how to improve this script to the following e-mail address:
+rotten@volny.cz.
+.SH LICENSING
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.

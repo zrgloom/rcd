@@ -1,0 +1,29 @@
+[project]
+name = "rcd"
+version = "0.2.0"
+description = "Remote command distribution"
+authors = [
+    {name = "Zdenek Rottenberg"}
+]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.0",
+    "pexpect>=4.8",
+]
+
+[project.optional-dependencies]
+keyring = ["keyring>=24.0"]
+
+[project.scripts]
+rcd = "rcd:main"
+
+[tool.poetry]
+include = [
+    { path = "man/man1/rcd.1", format = ["sdist", "wheel"] },
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
