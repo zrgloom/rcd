@@ -63,7 +63,7 @@ pip install keyring          # optional — only needed for keyring password sto
 | `-colname value` | — | Supply or override any host-file column on the command line |
 | `--man` | — | Show the man page and exit |
 
-Use `--help` for the built-in help text (which includes full format references for the host and command files).
+Use `--help` for the built-in help text.
 
 ---
 
