@@ -37,6 +37,26 @@ Either method registers an `rcd` command on your `PATH` and installs the man pag
 pip install "rcd[keyring] @ git+https://github.com/zrgloom/rcd.git"
 ```
 
+### Install with pipx
+
+[pipx](https://pypa.github.io/pipx/) installs `rcd` into its own isolated virtual environment while still exposing the `rcd` command on your `PATH` — useful if you don't want it mixed into a system or project Python environment:
+
+```
+pipx install git+https://github.com/zrgloom/rcd.git
+```
+
+Add the `keyring` extra the same way as with pip:
+
+```
+pipx install "rcd[keyring] @ git+https://github.com/zrgloom/rcd.git"
+```
+
+If you already have the `keyring` library (and a working backend, e.g. `python3-secretstorage`) installed via your system package manager, pass `--system-site-packages` so pipx's virtual environment can see it instead of installing a separate copy:
+
+```
+pipx install --system-site-packages git+https://github.com/zrgloom/rcd.git
+```
+
 ---
 
 ## Requirements
