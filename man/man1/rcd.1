@@ -2,38 +2,56 @@
 .SH NAME
 rcd - Remote command distribution
 .SH SYNTAX
-rcd.exp -h path_to_host_file | -h path_to_host_file [-ip ip_address] [-login login_name]
-[-pass password] [-proto [ssh|telnet]] [-cfile path_to_command_file] [-t timeout_in_sec]
-.I [-others]
+rcd.py -h path_to_host_file [-t timeout_in_sec] [--otp] [--login-failure-limit n]
+.I [-colname value ...]
+.br
+rcd.py --man
+.br
+rcd.py --help
 .SH DESCRIPTION
 Can distribute IOS commands on multiple Cisco devices, upload/download a startup/running
 configuration to/from Cisco devices or for performing device upgrade. These tasks can be
 performed by SSH or Telnet protocols. Even thought this script was primarily created for
 Cisco devices it can also be used for non Cisco devices (but I did not test it).
+.P
+rcd.py is a Python rewrite (using
+.B pexpect
+and
+.B click)
+of the original Tcl/Expect script
+.B rcd.exp,
+and is invoked as the
+.B rcd
+command once installed.
 .SH OPTIONS
 .IP -h
 Define the name of a hostfile that contains hosts specific parameters such as device
-IP address, transport protocol (ssh or telnet), login name or password. This information 
-will be used for connecting to a device. See the HOST FILE section.
-.IP -ip
-An IP address of a device. For the ip address syntax see the HOST FILE section.
-.IP -login
-A user login name. Used during SSH/Telnet authentication process.
-.IP -pass
-A user password. Used during SSH/Telnet authentication process.
-.IP -proto
-Define which protocol will be used for communication with device. You can choose either ssh or telnet.
-.IP -cfile
-Define the command file containing a list of commands to be distributed.
+IP address, transport protocol (ssh or telnet), login name or password. This information
+will be used for connecting to a device. See the HOST FILE section. This is the only
+mandatory command line option.
 .IP -t
-How long (in seconds) rcd.exp will wait for connection establishment, or receiving expected
+How long (in seconds) rcd will wait for connection establishment, or receiving expected
 string from device. Default value is 30s. Large value could result in slow performance espcially
 in case when some hosts are not accessible or wrong cfile definition. On the other hand very short
 value could result in assumption that some operation did not finished correctly (for example ssh
 key generation).
-.IP -others
-You can define (in a host file) as many parameters as necessary (in the first non '#' line - see HOST FILE
-section for more information) and then used them as a command line parameters with '-' preffix.
+.IP --otp
+Wait out the remainder of the current 30-second TOTP window before retrying a failed login.
+Use this when the password source (see HOST FILE - password management) yields a one-time
+token, so that a retried login does not reuse an already-expired code.
+.IP --login-failure-limit
+Maximum number of login attempts per device before it is skipped and rcd moves on to the
+next host. Defaults to 2.
+.IP --man
+Show this man page and exit. Falls back to a plain-text pager on platforms without a
+.B man
+command (for example Windows).
+.IP --help
+Show built-in usage help and exit.
+.IP "-colname value"
+Any mandatory or user defined host file column (for example -ip, -login, -pass, -proto,
+-cfile, or any custom column) can be supplied or overridden on the command line using a
+"-colname value" pair. See HOST FILE and HOST FILE - USER DEFINED PARAMETERS for details.
 .SH COMMAND DISTRIBUTION
 Before any distribution process can be started, you have to create two files. The first file (a host file)
 is a list of IP addresses where you intend to distribute configuration commands together with other
@@ -103,6 +121,9 @@ There are several ways to provide passwords for the rcd script. The simplest met
 You can also place a clear-text password directly in the host file’s pass field, though this is less secure. Alternatively, you can put a filename in the pass field, and the script will read the password from that file.
 For a more secure approach, you can use the Python keyring module to manage passwords. In this case, enter keyring:service in the pass field, where keyring is a keyword and service is the service name used by your password backend. To use this feature, install the keyring module with 'sudo pip install keyring' command.
 You may also need to update the keyring_backend variable at the beginning of the script, unless you choose to rely on the default backend, keyring.backends.libsecret.Keyring, which stores all passwords encrypted in a local file (~/.local/share/keyrings/).
+If the keyring entry holds a TOTP/OTP token, use the -\-otp command line option so that, after a
+failed login, rcd waits out the remainder of the current 30-second window before fetching a fresh
+token and retrying, rather than immediately retrying with an already-expired code.
 Unfortunately, if you need to provide an enable password, it must be stored as clear text in the host file. To avoid this, you can use AAA authorization, which automatically places you in privileged mode.
 
 .SS COMMAND FILE
@@ -118,7 +139,9 @@ first two lines - what you expect/what you send - and so on. Strings beginning w
 define variable. You can use host file parameters as a variable (for example: $tftp). If you use
 regular expressions in command file you can also use parenthesses to define $1, $2-$n variable.
 In the example bellow you can see that (\\w+) regular expression store pix hostname into $1 variable,
-which in turn is used in 'write net $tftp:$1' command.
+which in turn is used in 'write net $tftp:$1' command. Lines beginning with '#' are comments and are
+ignored. A blank send line simply presses Enter, which is useful for accepting a device's default
+prompt (for example when confirming 'copy startup tftp').
 .SS COMMAND FILE - EXAMPLE
 \t
 .P
@@ -160,6 +183,99 @@ Space.
 .P
 The above list of regular expressions is only shortened list. You should consult other books for complete
 list and explanation.
+.SH LOOP / ENDLOOP
+A
+.B LOOP
+block iterates the enclosed expect/send lines once per item in a pipe ('|') separated list
+variable, without reconnecting to the device between iterations. The loop body follows the same
+strict expect/send alternation as the rest of the command file. Loops may be nested. After
+.B ENDLOOP
+add an explicit expect line to catch the last iteration's output before the outer alternation
+resumes.
+.P
+.B LOOP
+takes two arguments: the name of the list variable to iterate over, and the name of the variable
+that should hold the current item on each iteration.
+.SS LOOP / ENDLOOP - EXAMPLE
+\t
+.P
+.nf
+----------------------- file name: cisco.multi-context ---------------
+.B .*>
+.B enable
+.B [Pp]assword:
+.B $enabpass
+.B LOOP $contexts $ctx
+.B \ew+#
+.B changeto context $ctx
+.B \ew+/\ew+#
+.B write mem
+.B ENDLOOP
+.B \ew+/\ew+#
+.B logout
+------------------------- end of file ---------------------------------
+.fi
+\t
+.P
+Corresponding host file entry:
+.B contexts = admin|dmz|inside
+.SH DYNAMIC VARIABLES
+Any host file variable value can be populated at runtime instead of being supplied statically, by
+prefixing the value with
+.B cmd:
+in the host file. The variable is resolved silently the first time it is referenced in the command
+file and cached for the rest of the session, so a given dynamic variable is only queried once per
+device. Dynamic variables can be used in send lines, expect patterns, and as
+.B LOOP
+list variables.
+.SS DYNAMIC VARIABLES - SYNTAX
+.P
+.B cmd:device_cmd1;pattern1;device_cmd2;pattern2;... [ | os_cmd1 | os_cmd2 ]
+.P
+Semicolons separate command/pattern pairs sent to the device: each command is sent, and the
+following pattern (a Python regular expression) marks the end of that command's output. Multiple
+pairs may be chained; their output is concatenated in order. The first " | " (space-pipe-space)
+sequence separates the device part from an optional shell pipeline, which is passed to
+.B /bin/sh
+so further pipes, awk, grep, sed, etc. work normally. The resulting output lines are joined with
+"|", making the variable directly usable as a
+.B LOOP
+list.
+.SS DYNAMIC VARIABLES - EXAMPLES
+\t
+.P
+.nf
+.B contexts = cmd:show context;.*#
+.B contexts = cmd:show context;.*# | awk '{print $1}' | grep -v System
+.B intname  = cmd:show run interface;.*# | grep nameif | awk '{print $2}'
+.fi
+.SH INSTALLATION
+Install directly from GitHub with pip, which pulls in the
+.B click
+and
+.B pexpect
+dependencies automatically:
+.P
+.B pip install git+https://github.com/zrgloom/rcd.git
+.P
+Add the
+.B keyring
+extra if you want 'keyring:'-based password storage (see HOST FILE - password management):
+.P
+.B pip install \(dqrcd[keyring] @ git+https://github.com/zrgloom/rcd.git\(dq
+.P
+This registers an
+.B rcd
+command on your PATH and installs this man page alongside it, so
+.B rcd --man
+always works. pip has no portable way to install the page into a system man directory, so
+.B man rcd
+will not work out of the box; to enable it on Linux/macOS run:
+.P
+.nf
+.B sudo install -Dm644 man/man1/rcd.1 /usr/local/share/man/man1/rcd.1
+.B sudo mandb
+.fi
 .SH USAGE NOTICE
 You had better try your command file on a test device before you will apply it on
 real devices. If you do not, you can finished with unreachable devices !!!
@@ -168,12 +284,8 @@ I would appreciate if you could send me any bug report or suggestion
 how to improve this script to the following e-mail address:
 rotten@volny.cz.
 .SH LICENSING
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+This program is free software, distributed under the terms of the MIT License. See the LICENSE
+file distributed with this program for the full license text.
 
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
