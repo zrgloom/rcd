@@ -220,4 +220,4 @@ Always test your command file on a lab device before running it in production. A
 
 ## License
 
-GNU General Public License v2 or later. See source for details.
+MIT License. See [LICENSE](LICENSE) for details.

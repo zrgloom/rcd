@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-rcd.py  ver 0.2 — Remote Command Distribution
+rcd.py  ver 0.2.0 — Remote Command Distribution
 """
 
 import io
