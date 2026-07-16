@@ -581,6 +581,11 @@ def _show_man(ctx: click.Context, param: click.Parameter, value: bool) -> None:
         return
     if sys.platform != "win32" and shutil.which("man"):
         subprocess.run(["man", str(MAN_PAGE)])
+    elif sys.platform == "win32":
+        # click.echo_via_pager() shells out to `more` via a temp file on
+        # Windows, which races the file's own cleanup and raises
+        # PermissionError [WinError 32]. Just print the text instead.
+        click.echo(MAN_PAGE.read_text())
     else:
         click.echo_via_pager(MAN_PAGE.read_text())
     ctx.exit()
