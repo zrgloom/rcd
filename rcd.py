@@ -579,7 +579,7 @@ For example: -ip 10.0.0.1 -login admin -tftp 192.168.254.100
 def _show_man(ctx: click.Context, param: click.Parameter, value: bool) -> None:
     if not value or ctx.resilient_parsing:
         return
-    if sys.platform != "win32" and shutil.which("man"):
+    if shutil.which("man"):
         subprocess.run(["man", str(MAN_PAGE)])
     else:
         click.echo_via_pager(MAN_PAGE.read_text())

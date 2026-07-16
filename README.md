@@ -4,6 +4,8 @@
 
 Primary use cases: pushing IOS configuration, backing up startup/running configs to a TFTP server, and performing device upgrades across Cisco (and compatible) equipment. Any device reachable via SSH or Telnet with a password prompt should work.
 
+**Platform support:** Linux only. Runs natively on Linux and under WSL (Windows Subsystem for Linux); native Windows is not supported.
+
 ### Features
 
 - **SSH and Telnet** transport, driven by an interactive expect/send command file
