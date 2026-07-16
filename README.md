@@ -175,7 +175,7 @@ Capture groups in expect patterns populate `$1`, `$2`, … for use in subsequent
 enable
 [Pp]assword:
 $enabpass
-.*#
+(\w+)#
 write net $tftp:$1
 .*#
 logout
