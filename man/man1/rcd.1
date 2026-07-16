@@ -153,7 +153,7 @@ prompt (for example when confirming 'copy startup tftp').
 .B enable
 .B Password:
 .B $enabpass
-.B (w+)#
+.B .*#
 .B write net $tftp:$1
 .B .*#
 .B logout
@@ -208,12 +208,12 @@ that should hold the current item on each iteration.
 .B [Pp]assword:
 .B $enabpass
 .B LOOP $contexts $ctx
-.B \ew+#
+.B .*#
 .B changeto context $ctx
-.B \ew+/\ew+#
+.B .*#
 .B write mem
 .B ENDLOOP
-.B \ew+/\ew+#
+.B .*#
 .B logout
 ------------------------- end of file ---------------------------------
 .fi
@@ -232,9 +232,9 @@ device. Dynamic variables can be used in send lines, expect patterns, and as
 list variables.
 .SS DYNAMIC VARIABLES - SYNTAX
 .P
-.B cmd:device_cmd1;pattern1;device_cmd2;pattern2;... [ | os_cmd1 | os_cmd2 ]
+.B cmd:device_cmd1;ret_pattern1;device_cmd2;ret_pattern2;... [ | os_cmd1 | os_cmd2 ]
 .P
-Semicolons separate command/pattern pairs sent to the device: each command is sent, and the
+Semicolons separate command/ret_pattern pairs sent/receive to/from the device: each command is sent, and the
 following pattern (a Python regular expression) marks the end of that command's output. Multiple
 pairs may be chained; their output is concatenated in order. The first " | " (space-pipe-space)
 sequence separates the device part from an optional shell pipeline, which is passed to
@@ -247,8 +247,7 @@ list.
 \t
 .P
 .nf
-.B contexts = cmd:show context;.*#
-.B contexts = cmd:show context;.*# | awk '{print $1}' | grep -v System
+.B contexts = cmd:changeto system;.*#;show run context;.*# | grep '^context' | awk '{print $2}'
 .B intname  = cmd:show run interface;.*# | grep nameif | awk '{print $2}'
 .fi
 .SH INSTALLATION

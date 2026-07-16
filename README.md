@@ -175,7 +175,7 @@ Capture groups in expect patterns populate `$1`, `$2`, … for use in subsequent
 enable
 [Pp]assword:
 $enabpass
-(\w+)#
+.*#
 write net $tftp:$1
 .*#
 logout
@@ -195,12 +195,12 @@ enable
 [Pp]assword:
 $enabpass
 LOOP $contexts $ctx
-\w+#
+.*#
 changeto context $ctx
-\w+/\w+#
+.*#
 write mem
 ENDLOOP
-\w+/\w+#
+.*#
 logout
 ```
 
@@ -217,16 +217,15 @@ Any variable value can be populated at runtime by querying the device, using the
 **Syntax:**
 
 ```
-cmd:device_cmd1;pattern1;device_cmd2;pattern2;... [ | os_cmd1 | os_cmd2 ]
+cmd:device_cmd1;ret_pattern1;device_cmd2;ret_pattern2;... [ | os_cmd1 | os_cmd2 ]
 ```
 
-Semicolons separate command/pattern pairs sent to the device. The first ` | ` (space-pipe-space) separates the device part from an optional shell pipeline passed to `/bin/sh`. For `LOOP` variables, output lines are joined with `|`.
+Semicolons separate command/ret_pattern pairs sent/receive to/from the device. The first ` | ` (space-pipe-space) separates the device part from an optional shell pipeline passed to `/bin/sh`. For `LOOP` variables, output lines are joined with `|`.
 
 **Examples:**
 
 ```
-contexts = cmd:show context;.*#
-contexts = cmd:show context;.*# | awk '{print $1}' | grep -v System
+contexts = cmd:changeto system;.*#;show run context;.*# | grep '^context' | awk '{print $2}'
 intname  = cmd:show run interface;.*# | grep nameif | awk '{print $2}'
 ```
 
