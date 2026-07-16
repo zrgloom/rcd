@@ -73,7 +73,7 @@ pip install keyring          # optional — only needed for keyring password sto
 ## Usage
 
 ```
-./rcd.py -h <hostfile> [OPTIONS] [-colname value ...]
+rcd -h <hostfile> [OPTIONS] [-colname value ...]
 ```
 
 | Option | Default | Description |
